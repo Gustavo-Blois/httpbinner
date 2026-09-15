@@ -1,0 +1,3 @@
+(library
+ (name httpbinner)
+ (libraries cohttp cohttp-lwt-unix sha zarith))
