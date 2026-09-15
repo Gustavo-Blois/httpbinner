@@ -65,16 +65,13 @@ let rec chunks n = function
       let chunk, rest = take n [] l in
       chunk :: chunks n rest
 
-let get_tokens_from_multiple_urls urls ~headers =
-   Lwt_list.map_p (fun t -> get_tokens_safe t ~headers) urls
-  
 let get_tokens_from_multiple_urls ?(concurrency = 4) urls ~headers
-    : string list list Lwt.t =
-  let open Lwt.Syntax in
-  let* results =
-    Lwt_list.map_s
-      (Lwt_list.map_p (fun url -> get_tokens_safe url ~headers))
-      (chunks concurrency urls)
+    : (string * string list) list Lwt.t =
+  if concurrency <= 0 then invalid_arg "concurrency deve ser > 0";
+  let fetch url =
+    Lwt.map (fun tokens -> (url, tokens)) (get_tokens_safe url ~headers)
   in
-  Lwt.return (List.concat results)
+  chunks concurrency urls
+  |> Lwt_list.map_s (Lwt_list.map_p fetch)
+  |> Lwt.map List.concat
 
