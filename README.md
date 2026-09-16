@@ -78,23 +78,3 @@ cat urls.txt | httpbinner -t 20 -H 'Accept: text/html' -c 4 -s -o bins.txt
 Without `--silent`, each bin prints its representative URL, fingerprint, and
 semicolon-separated member URLs on three lines. Empty input lines are ignored.
 Failed requests and responses with no tokens are excluded from bins.
-
-## Releasing
-
-GitHub Actions builds and tests all three platforms on pull requests and pushes
-to `main`. You can also run the workflow manually from the Actions tab and
-download its build artifacts without publishing a release.
-
-To publish a release, commit your changes, push `main`, and wait for the workflow
-to pass. Then create and push a version tag:
-
-```sh
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
-```
-
-Pushing a `v*` tag builds and tests every platform, then creates a GitHub Release
-with the three archives, SHA-256 checksums, and generated release notes. The
-workflow uses GitHub's built-in token; no extra publishing secret is needed.
-Use a new version tag for each release. This publishes GitHub downloads; it does
-not submit the package to the opam registry or Homebrew.
