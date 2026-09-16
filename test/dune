@@ -1,3 +1,3 @@
 (tests
- (names test_bitcount test_simhash)
+ (names test_bitcount test_simhash test_request)
  (libraries httpbinner alcotest qcheck-alcotest))

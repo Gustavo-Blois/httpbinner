@@ -75,3 +75,4 @@ let get_tokens_from_multiple_urls ?(concurrency = 4) ?(silent = false) urls ~hea
   chunks concurrency urls
   |> Lwt_list.map_s (Lwt_list.map_p fetch)
   |> Lwt.map List.concat
+  |> Lwt.map (List.filter (fun (_, tokens) -> tokens <> []))

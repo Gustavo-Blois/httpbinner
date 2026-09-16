@@ -5,20 +5,20 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github Gustavo-Blois/httpbinner))
 
-(authors "Author Name <author@example.com>")
+(authors "Gustavo Blois <gustavobloist@gmail.com>")
 
-(maintainers "Maintainer Name <maintainer@example.com>")
+(maintainers "Gustavo Blois <gustavobloist@gmail.com>")
 
-(license LICENSE)
+(license "MIT")
 
-(documentation https://url/to/documentation)
+(documentation https://github.com/Gustavo-Blois/httpbinner#readme)
 
 (package
  (name httpbinner)
- (synopsis "A short synopsis")
- (description "A longer description")
+ (synopsis "A tool to group URLs")
+ (description "A tool to group URLs using the SimHash algorithm")
  (depends
   ocaml
   cohttp
@@ -29,6 +29,6 @@
   (alcotest :with-test)
   (qcheck-alcotest :with-test))
  (tags
-  ("add topics" "to describe" your project)))
+  ("http" "cli" "simhash")))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
