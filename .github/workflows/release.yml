@@ -1,0 +1,84 @@
+name: Build and release
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-x86_64
+          - os: macos-15-intel
+            target: macos-x86_64
+          - os: macos-15
+            target: macos-arm64
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.4.1'
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test -y
+      - name: Build and test
+        run: |
+          opam exec -- dune build @all @install @runtest
+          opam lint httpbinner.opam
+      - name: Package executable
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          mkdir -p dist package
+          cp _build/default/bin/main.exe package/httpbinner
+          cp README.md LICENSE package/
+          package/httpbinner --help=plain > /dev/null
+          package/httpbinner --silent < /dev/null > empty-output.txt
+          test ! -s empty-output.txt
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            ldd package/httpbinner > package/DEPENDENCIES.txt
+          else
+            otool -L package/httpbinner > package/DEPENDENCIES.txt
+          fi
+          tar -czf "dist/httpbinner-$TARGET.tar.gz" -C package .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: httpbinner-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: httpbinner-*
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum *.tar.gz > SHA256SUMS
+      - name: Publish archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS \
+            --verify-tag --generate-notes --title "$RELEASE_TAG"
