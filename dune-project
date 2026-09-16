@@ -19,7 +19,15 @@
  (name httpbinner)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml)
+ (depends
+  ocaml
+  cohttp
+  cohttp-lwt-unix
+  sha
+  zarith
+  cmdliner
+  (alcotest :with-test)
+  (qcheck-alcotest :with-test))
  (tags
   ("add topics" "to describe" your project)))
 

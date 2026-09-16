@@ -1,4 +1,4 @@
 (executable
  (public_name httpbinner)
  (name main)
- (libraries httpbinner))
+ (libraries httpbinner cmdliner))

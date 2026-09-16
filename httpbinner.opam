@@ -12,6 +12,13 @@ bug-reports: "https://github.com/username/reponame/issues"
 depends: [
   "dune" {>= "3.24"}
   "ocaml"
+  "cohttp"
+  "cohttp-lwt-unix"
+  "sha"
+  "zarith"
+  "cmdliner"
+  "alcotest" {with-test}
+  "qcheck-alcotest" {with-test}
   "odoc" {with-doc}
 ]
 build: [

@@ -49,11 +49,12 @@ let get_tokens_from_url url_str ~headers : string list Lwt.t =
          (Uri.to_string final_uri) url_str)
   end
 
-let get_tokens_safe url ~headers =
+let get_tokens_safe ?(silent = false) url ~headers =
   Lwt.catch
     (fun () -> get_tokens_from_url url ~headers)
     (fun exn ->
-      Printf.eprintf "fail on %s: %s\n%!" url (Printexc.to_string exn);
+      if not silent then
+        Printf.eprintf "fail on %s: %s\n%!" url (Printexc.to_string exn);
       Lwt.return [])
 let rec chunks n = function
   | [] -> []
@@ -65,13 +66,12 @@ let rec chunks n = function
       let chunk, rest = take n [] l in
       chunk :: chunks n rest
 
-let get_tokens_from_multiple_urls ?(concurrency = 4) urls ~headers
+let get_tokens_from_multiple_urls ?(concurrency = 4) ?(silent = false) urls ~headers
     : (string * string list) list Lwt.t =
   if concurrency <= 0 then invalid_arg "concurrency deve ser > 0";
   let fetch url =
-    Lwt.map (fun tokens -> (url, tokens)) (get_tokens_safe url ~headers)
+    Lwt.map (fun tokens -> (url, tokens)) (get_tokens_safe ~silent url ~headers)
   in
   chunks concurrency urls
   |> Lwt_list.map_s (Lwt_list.map_p fetch)
   |> Lwt.map List.concat
-
