@@ -23,6 +23,7 @@
   ocaml
   cohttp
   cohttp-lwt-unix
+  lwt_ssl
   sha
   zarith
   cmdliner

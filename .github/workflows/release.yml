@@ -46,6 +46,8 @@ jobs:
           package/httpbinner --help=plain > /dev/null
           package/httpbinner --silent < /dev/null > empty-output.txt
           test ! -s empty-output.txt
+          printf '%s\n' https://example.com | package/httpbinner --silent > https-output.txt
+          test -s https-output.txt
           if [ "$RUNNER_OS" = "Linux" ]; then
             ldd package/httpbinner > package/DEPENDENCIES.txt
           else
