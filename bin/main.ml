@@ -17,7 +17,7 @@ let main (options : Cmd.options) =
     let urls_and_tokens_lists =
       Lwt_main.run
         (Request.get_tokens_from_multiple_urls urls ~headers
-           ~concurrency:options.concurrency ~silent:options.silent)
+           ~concurrency:options.concurrency ?rate:options.rate ~silent:options.silent)
     in
     let bins = Bins.create_bins ~threshold:options.threshold urls_and_tokens_lists in
     let write channel =

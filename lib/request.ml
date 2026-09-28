@@ -6,10 +6,23 @@ open Lwt.Syntax
 let tokenize s =
   String.split_on_char ' ' s |> List.filter ((<>) "") |> List.map String.trim |>  List.filter ((<>) "")
 
+let no_limit () = Lwt.return_unit
 
+(* Espaça o início das requisições em 1/rate segundos. Lwt é cooperativo,
+   então reservar o próximo slot antes de dormir dispensa mutex. *)
+let rate_limiter rate =
+  if rate <= 0 then invalid_arg "rate deve ser > 0";
+  let interval = 1.0 /. float_of_int rate in
+  let next = ref 0.0 in
+  fun () ->
+    let now = Unix.gettimeofday () in
+    let slot = Float.max now !next in
+    next := slot +. interval;
+    let delay = slot -. now in
+    if delay > 0.0 then Lwt_unix.sleep delay else Lwt.return_unit
 
-
-let rec get_following ?(max_redirects = 5) ~headers uri =
+let rec get_following ?(max_redirects = 5) ?(throttle = no_limit) ~headers uri =
+  let* () = throttle () in
   let* resp, body = Client.get ~headers uri in
   let code = resp |> Cohttp.Response.status |> Cohttp.Code.code_of_status in
   match code with
@@ -31,13 +44,13 @@ let rec get_following ?(max_redirects = 5) ~headers uri =
               if Uri.host next = Uri.host uri then headers
               else Cohttp.Header.remove headers "authorization"
             in
-            get_following ~max_redirects:(max_redirects - 1) ~headers next
+            get_following ~max_redirects:(max_redirects - 1) ~throttle ~headers next
       end
   | _ -> Lwt.return (uri, resp, body)
 
 
-let get_tokens_from_url url_str ~headers : string list Lwt.t =
-  let* final_uri, resp, body = get_following ~headers (Uri.of_string url_str) in
+let get_tokens_from_url ?throttle url_str ~headers : string list Lwt.t =
+  let* final_uri, resp, body = get_following ?throttle ~headers (Uri.of_string url_str) in
   let code = resp |> Cohttp.Response.status |> Cohttp.Code.code_of_status in
   if Cohttp.Code.is_success code then begin
     let* body_str = Cohttp_lwt.Body.to_string body in
@@ -49,30 +62,23 @@ let get_tokens_from_url url_str ~headers : string list Lwt.t =
          (Uri.to_string final_uri) url_str)
   end
 
-let get_tokens_safe ?(silent = false) url ~headers =
+let get_tokens_safe ?(silent = false) ?throttle url ~headers =
   Lwt.catch
-    (fun () -> get_tokens_from_url url ~headers)
+    (fun () -> get_tokens_from_url ?throttle url ~headers)
     (fun exn ->
       if not silent then
         Printf.eprintf "fail on %s: %s\n%!" url (Printexc.to_string exn);
       Lwt.return [])
-let rec chunks n = function
-  | [] -> []
-  | l ->
-      let rec take k acc = function
-        | x :: xs when k > 0 -> take (k - 1) (x :: acc) xs
-        | rest -> (List.rev acc, rest)
-      in
-      let chunk, rest = take n [] l in
-      chunk :: chunks n rest
-
-let get_tokens_from_multiple_urls ?(concurrency = 4) ?(silent = false) urls ~headers
+let get_tokens_from_multiple_urls ?(concurrency = 4) ?rate ?(silent = false) urls ~headers
     : (string * string list) list Lwt.t =
   if concurrency <= 0 then invalid_arg "concurrency deve ser > 0";
+  let throttle = Option.fold ~none:no_limit ~some:rate_limiter rate in
+  (* Pool de vagas: uma URL começa assim que qualquer outra termina,
+     mantendo até [concurrency] requisições em andamento. *)
+  let slots = Lwt_pool.create concurrency (fun () -> Lwt.return_unit) in
   let fetch url =
-    Lwt.map (fun tokens -> (url, tokens)) (get_tokens_safe ~silent url ~headers)
+    Lwt_pool.use slots (fun () ->
+      Lwt.map (fun tokens -> (url, tokens)) (get_tokens_safe ~silent ~throttle url ~headers))
   in
-  chunks concurrency urls
-  |> Lwt_list.map_s (Lwt_list.map_p fetch)
-  |> Lwt.map List.concat
+  Lwt_list.map_p fetch urls
   |> Lwt.map (List.filter (fun (_, tokens) -> tokens <> []))

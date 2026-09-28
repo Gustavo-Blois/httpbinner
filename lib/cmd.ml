@@ -4,6 +4,7 @@ type options = {
   threshold : int64;
   headers : (string * string) list;
   concurrency : int;
+  rate : int option;
   output : string option;
   silent : bool;
   verbose : bool;
@@ -55,6 +56,10 @@ let options_t =
     let doc = "Maximum number of concurrent requests." in
     Arg.(value & opt positive_int 4 & info ["concurrency"; "c"] ~docv:"INT" ~doc)
   in
+  let rate =
+    let doc = "Maximum number of requests per second, redirects included (default: unlimited)." in
+    Arg.(value & opt (some positive_int) None & info ["rate"; "r"] ~docv:"INT" ~doc)
+  in
   let output =
     let doc = "Write results to FILE instead of standard output." in
     Arg.(value & opt (some string) None & info ["output"; "o"] ~docv:"FILE" ~doc)
@@ -67,7 +72,7 @@ let options_t =
     let doc = "Enable verbose output." in
     Arg.(value & flag & info ["verbose"; "v"] ~doc)
   in
-  let make threshold headers concurrency output silent verbose =
-    { threshold; headers; concurrency; output; silent; verbose }
+  let make threshold headers concurrency rate output silent verbose =
+    { threshold; headers; concurrency; rate; output; silent; verbose }
   in
-  Term.(const make $ threshold $ headers $ concurrency $ output $ silent $ verbose)
+  Term.(const make $ threshold $ headers $ concurrency $ rate $ output $ silent $ verbose)
